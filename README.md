@@ -1,0 +1,1 @@
+https://aoe2-scoreboard.neyl.dev
