@@ -35,8 +35,8 @@
 
 </script>
 
-{#if (index < 8 && player) }
-    <img src={`https://aoe2techtree.net/img/Civs/${civs[civ]?.toLowerCase()}.png`} class="player-civ {(won) ? '-won' : '-lost'}" width="30" height="30" alt="" style:left={`${get_left_px()}px`}>
+{#if (index < 8 && player && civs[civ]) }
+    <img src={`https://aoe2techtree.net/img/Civs/${civs[civ].toLowerCase()}.png`} class="player-civ {(won) ? '-won' : '-lost'}" width="30" height="30" alt="" style:left={`${get_left_px()}px`}>
 {/if}
 
 <style>
