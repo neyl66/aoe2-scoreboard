@@ -280,7 +280,7 @@
 
     {#if (settings.show_player_civs === "yes" && matches.player.length > 0) }
         <div class="player-civs -player">
-            {#each matches.player as match, index (match.match_id)}
+            {#each matches.player.slice(1) as match, index (match.match_id)}
                 <Civilization {match} {index} profile_id={settings.profile_id} civs={settings.civs} type="player" />
             {/each}
         </div>
