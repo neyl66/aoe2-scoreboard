@@ -5,6 +5,8 @@
     export let type = "";
     export let index = 0;
 
+    $: left_px = get_left_px();
+
     const player = match.players.find((player) => player.profile_id === profile_id);
     const {civ, won} = player || {};
 
@@ -36,7 +38,7 @@
 </script>
 
 {#if (index < 8 && player && civs[civ]) }
-    <img src={`https://aoe2techtree.net/img/Civs/${civs[civ].toLowerCase()}.png`} class="player-civ {(won) ? '-won' : '-lost'}" width="30" height="30" alt="" style:left={`${get_left_px()}px`}>
+    <img src={`https://aoe2techtree.net/img/Civs/${civs[civ].toLowerCase()}.png`} class="player-civ {(won) ? '-won' : '-lost'}" width="30" height="30" alt="" style:left={`${left_px}px`}>
 {/if}
 
 <style>
