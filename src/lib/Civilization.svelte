@@ -5,12 +5,12 @@
     export let type = "";
     export let index = 0;
 
-    $: left_px = get_left_px();
+    $: left_px = get_left_px(index);
 
     const player = match.players.find((player) => player.profile_id === profile_id);
     const {civ, won} = player || {};
 
-    function get_left_px() {
+    function get_left_px(index) {
         let left_px_start = 0;
         const left_px_step = 30;
 
