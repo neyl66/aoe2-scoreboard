@@ -78,8 +78,7 @@
         set_score("player");
 
         // Get winrate against new enemy.
-        if (settings.current_match_id !== matches["player"][0].match_id) {
-            settings.current_match_id = matches["player"][0].match_id;
+        if (settings.current_match_id !== matches["player"][0]?.match_id) {
 
             // Set enemy matches
             matches["enemy"] = await get_matches("enemy", settings.profile_id_enemy).then((matches) => matches.filter((match) => {
@@ -98,7 +97,11 @@
             }));
             
             // Set player winrate.
-            set_winrate();
+            if (settings.profile_id_enemy && matches.enemy.length > 0) {
+                settings.current_match_id = matches["player"][0].match_id;
+                set_winrate();
+            }
+            
         }
 
         is_loading = false;
@@ -165,9 +168,6 @@
     }
 
     function set_winrate() {
-        if (!settings.profile_id_enemy || matches.enemy.length < 1) return;
-
-        // Prepare values.
         let wins = 0;
         let losses = 0;
 
