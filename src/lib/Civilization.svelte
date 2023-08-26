@@ -1,14 +1,13 @@
 <script>
     export let match = {};
     export let profile_id = 0;
-    export let civs = {};
     export let type = "";
     export let index = 0;
 
     $: left_px = get_left_px(index);
 
-    const player = match.players.find((player) => player.profile_id === profile_id);
-    const {civ, won} = player || {};
+    const player = Object.values(match.teams.find((team) => team.players.find((player) => player.profileId === profile_id)).players).find((player) => player.profileId === profile_id) || {};
+    const {civImageUrl, won} = player;
 
     function get_left_px(index) {
         let left_px_start = 0;
@@ -37,8 +36,8 @@
 
 </script>
 
-{#if (index < 8 && player && civs[civ]) }
-    <img src={`https://aoe2techtree.net/img/Civs/${civs[civ].toLowerCase()}.png`} class="player-civ {(won) ? '-won' : '-lost'}" width="30" height="30" alt="" style:left={`${left_px}px`}>
+{#if (index < 8 && player && civImageUrl) }
+    <img src={civImageUrl} class="player-civ {(won) ? '-won' : '-lost'}" width="30" height="30" alt="" style:left={`${left_px}px`}>
 {/if}
 
 <style>

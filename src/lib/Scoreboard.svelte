@@ -5,8 +5,8 @@
 
     import Civilization from "./Civilization.svelte";
 
-    const matches_url = (profile_id, matches_count) => `https://legacy.aoe2companion.com/api/player/matches?game=aoe2de&start=0&count=${matches_count}&profile_ids=${profile_id}`;
-    
+    import {get_matches} from "../queries/matches.js";
+
 	const settings = {
         profile_id: parseInt(route.query?.profile_id) || 0,
         timeframe: 0,
@@ -45,24 +45,6 @@
 
     let is_loading = false;
 
-    async function set_static_data() {
-        const response = await fetch("https://raw.githubusercontent.com/denniske/aoe2companion/master/app/assets/strings/en.json.lazy");
-        const {civ, game_type, leaderboard, map_size, map_type, rating_type} = await response.json();
-
-        const prepare_data = (data) => data.reduce((data, item) => {
-            data[item.id] = item.string;
-            return data;
-        }, {});
-
-        // Set static data.
-        settings["civs"] = prepare_data(civ);
-        settings["game_type"] = prepare_data(game_type);
-        settings["leaderboard"] = prepare_data(leaderboard);
-        settings["map_size"] = prepare_data(map_size);
-        settings["map_type"] = prepare_data(map_type);
-        settings["rating_type"] = prepare_data(rating_type);
-    }
-
     // Happens every x seconds.
     async function set_data() {
         if (is_loading) return;
@@ -72,53 +54,39 @@
         change_hours();
 
         // Set player matches.
-        matches["player"] = await get_matches("player", settings.profile_id).then((matches) => matches.filter((match) => match.num_players === settings.num_players));
+        matches["player"] = await get_matches(settings.profile_id, settings.matches_count["player"]).then((matches) => matches.filter(({teams}) => teams.map((team) => Object.keys(team.players).flat()).flat().length === settings.num_players));
 
         // Set player score.
         set_score("player");
 
         // Get winrate against new enemy.
-        if (settings.current_match_id !== matches["player"][0]?.match_id) {
+        if (settings.current_match_id !== matches["player"][0]?.matchId) {
 
             // Set enemy matches
-            matches["enemy"] = await get_matches("enemy", settings.profile_id_enemy).then((matches) => matches.filter((match) => {
-                const {players, finished} = match;
+            matches["enemy"] = await get_matches(settings.profile_id_enemy, settings.matches_count["enemy"]).then((matches) => matches.filter((match) => {
+                const {players, finished, teams} = match;
 
                 // Skip games based on number of players.
-                if (match.num_players !== settings.num_players) return false;
+                if (teams.map((team) => Object.keys(team.players).flat()).flat().length !== settings.num_players) return false;
 
                 // Skip not finished games.
                 if (!finished) return false;
 
                 // Skip games without win info.
-                if (players[0].won === null) return false;
+                if (teams[0].players[0].won === null) return false;
 
                 return true;
             }));
 
             // Set player winrate.
             if (settings.profile_id_enemy && matches.enemy.length > 0) {
-                settings.current_match_id = matches["player"][0]?.match_id;
+                settings.current_match_id = matches["player"][0].matchId;
                 set_winrate();
             }
 
         }
 
         is_loading = false;
-    }
-
-    async function get_matches(type, profile_id) {
-        try {
-            const response = await fetch(matches_url(profile_id, settings.matches_count[type]));
-            if (!response.ok) return [];
-
-            const json = await response.json();
-            return json;
-        } catch (error) {
-            console.error(error);
-        }
-
-        return [];
     }
 
     function set_score(type) {
@@ -131,14 +99,13 @@
         // Loop through matches.
         let found_enemy = false;
         for (const match of matches[type]) {
-            const {players, match_id} = match;
-            const started_unix = match.started * 1000;
-            const finished_unix = match.finished * 1000;
+            const {teams} = match;
+            const finished_unix = new Date(match.finished).getTime();
 
             // Get first enemy player in currently played game.
             if (!found_enemy) {
-                const enemy_player = players.find((player) => player.profile_id !== settings.profile_id);
-                settings.profile_id_enemy = enemy_player.profile_id;
+                const enemy_player = Object.values(teams.find((team) => team.players.find((player) => player.profileId !== settings.profile_id)).players).find((player) => player.profileId !== settings.profile_id);
+                settings.profile_id_enemy = enemy_player.profileId;
 
                 found_enemy = true;
             }
@@ -150,18 +117,19 @@
             if (finished_unix < settings.timeframe) continue;
 
             // Skip games without win info.
-            if (players[0].won === null) continue;
+            if (teams[0].players[0].won === null) continue;
 
             // Get player score.
-            for (const player of players) {
+            for (const team of teams) {
+                for (const player of team.players) {
+                    // Skip enemy players.
+                    if (player.profileId !== settings.profile_id) continue;
 
-                // Skip enemy players.
-                if (player.profile_id !== settings.profile_id) continue;
-
-                if (player.won) {
-                    score.wins++;
-                } else {
-                    score.losses++;
+                    if (player.won) {
+                        score.wins++;
+                    } else {
+                        score.losses++;
+                    }
                 }
             }
         }
@@ -173,18 +141,20 @@
 
         // Loop through enemy matches.
         for (const match of matches["enemy"]) {
-            const {players} = match;
+            const {teams} = match;
 
             // Get player score against current enemy.
-            for (const player of players) {
+            for (const team of teams) {
+                for (const player of team.players) {
 
-                // Skip enemy players.
-                if (player.profile_id !== settings.profile_id) continue;
+                    // Skip enemy players.
+                    if (player.profileId !== settings.profile_id) continue;
 
-                if (player.won) {
-                    wins++;
-                } else {
-                    losses++;
+                    if (player.won) {
+                        wins++;
+                    } else {
+                        losses++;
+                    }
                 }
             }
         }
@@ -250,7 +220,6 @@
     onMount(async () => {
         if (!settings.profile_id) return;
 
-        set_static_data();
         set_data();
 		start_periodic_check();
 	});
@@ -280,16 +249,16 @@
 
     {#if (settings.show_player_civs === "yes" && matches.player.length > 0) }
         <div class="player-civs -player">
-            {#each matches.player.filter((match) => match.finished) as match, index (match.match_id)}
-                <Civilization {match} {index} profile_id={settings.profile_id} civs={settings.civs} type="player" />
+            {#each matches.player.filter((match) => match.finished) as match, index (match.matchId)}
+                <Civilization {match} {index} profile_id={settings.profile_id} type="player" />
             {/each}
         </div>
     {/if}
 
     {#if (settings.show_enemy_civs === "yes" && matches.enemy.length > 0) }
         <div class="player-civs -enemy">
-            {#each matches.enemy as match, index (match.match_id)}
-                <Civilization {match} {index} profile_id={settings.profile_id_enemy} civs={settings.civs} type="enemy" />
+            {#each matches.enemy as match, index (match.matchId)}
+                <Civilization {match} {index} profile_id={settings.profile_id_enemy} type="enemy" />
             {/each}
         </div>
     {/if}
