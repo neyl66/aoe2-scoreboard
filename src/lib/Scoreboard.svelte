@@ -80,7 +80,7 @@
 
             // Set player winrate.
             if (settings.profile_id_enemy && matches.enemy.length > 0) {
-                settings.current_match_id = matches["player"][0].matchId;
+                settings.current_match_id = matches["player"][0]?.matchId;
                 set_winrate();
             }
 
