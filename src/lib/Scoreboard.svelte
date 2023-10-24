@@ -25,6 +25,7 @@
             timer: 0,
             interval: 30 * 1000,
         },
+        ignore_unranked: true,
 	};
 
     const matches = {
@@ -64,7 +65,10 @@
 
             // Set enemy matches
             matches["enemy"] = await get_matches(settings.profile_id_enemy, settings.matches_count["enemy"]).then((matches) => matches.filter((match) => {
-                const {players, finished, teams} = match;
+                const {players, finished, teams, leaderboardId} = match;
+
+                // Skip games based on leaderboard ID.
+                if (!!settings?.ignore_unranked && leaderboardId === "unranked") return false;
 
                 // Skip games based on number of players.
                 if (teams.map((team) => Object.keys(team.players).flat()).flat().length !== settings.num_players) return false;
@@ -99,7 +103,7 @@
         // Loop through matches.
         let found_enemy = false;
         for (const match of matches[type]) {
-            const {teams} = match;
+            const {teams, leaderboardId} = match;
             const finished_unix = new Date(match.finished).getTime();
 
             // Get first enemy player in currently played game.
@@ -118,6 +122,9 @@
 
             // Skip games without win info.
             if (teams[0].players[0].won === null) continue;
+
+            // Skip games based on leaderboard ID.
+            if (!!settings?.ignore_unranked && leaderboardId === "unranked") return false;
 
             // Get player score.
             for (const team of teams) {
